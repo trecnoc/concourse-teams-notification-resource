@@ -15,10 +15,10 @@ cat > "${payload}" <&0
 webhook_url="$(jq -r '.source.url' < "${payload}")"
 build_status="$(jq -r '(.params.status // null)' < "${payload}")"
 proxy="$(jq -r '(.params.proxy // null)' < "${payload}")"
-atc_username="$(jq -r '.source.atc_username' < "${payload}")"
-atc_password="$(jq -r '.source.atc_password' < "${payload}")"
 region=$(echo "${ATC_EXTERNAL_URL}" | cut -d'.' -f2)
 concourse_hostname=$(echo "${ATC_EXTERNAL_URL}" | cut -d'.' -f1 | sed -e 's/https:\/\///g')
+custom_message="$(jq -r '.params.message' < "${payload}")"
+message_file="$(jq -r '.params.message_file' < "${payload}")"
 
 if [ "${webhook_url}" == "" ]; then
   echo "No webhook_url has been set. Exiting.."
@@ -29,24 +29,14 @@ if [[ "${proxy}" == "false" ]]; then
   unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 fi
 
-if [ "${ATC_EXTERNAL_URL:-}" != "" ] && [ "${atc_username:-}" != "" ] && [ "${atc_password:-}" != "" ]; then
-    error_context="$(python /opt/resource/teams_error_capture.py \
-    "${ATC_EXTERNAL_URL}" \
-    "${atc_username}" \
-    "${atc_password}" \
-    "${BUILD_ID}")"
-else
-    error_context="No error context possible without valid ATC url and credentials."
-fi
-
 case "$build_status" in
   success)
     message_color='00FF00'
-    message_title="Build ${BUILD_PIPELINE_NAME} - ${BUILD_JOB_NAME} - ${region} - ${concourse_hostname} succeeded"
+    message_title="Build ${BUILD_PIPELINE_NAME} - ${BUILD_JOB_NAME} succeeded"
     ;;
   failure)
     message_color='FF0000'
-    message_title="Build ${BUILD_PIPELINE_NAME} - ${BUILD_JOB_NAME} - ${region} - ${concourse_hostname} failed"
+    message_title="Build ${BUILD_PIPELINE_NAME} - ${BUILD_JOB_NAME} failed"
     ;;
   *)
     echo "Neither success nor failure was set as the build_status. Exiting.."
@@ -54,6 +44,16 @@ case "$build_status" in
     ;;
 esac
 
+if [[ "${message_file:-}" != "null" ]]; then
+  message_section="$(cat $1/${message_file})"
+else
+  message_section=$custom_message
+fi
+
+# Insert quotes if nessesary
+if [[ "${message_section:-}" != "null" ]]; then
+  message_section="\"${message_section}\""
+fi
 
 message_summary="${BUILD_PIPELINE_NAME} - ${BUILD_JOB_NAME}"
 message_title_link="${ATC_EXTERNAL_URL}/teams/${BUILD_TEAM_NAME}/pipelines/${BUILD_PIPELINE_NAME}/jobs/${BUILD_JOB_NAME}/builds/${BUILD_NAME}"
@@ -79,7 +79,7 @@ body="$(cat <<EOF
 	],
   	"sections": [
       {
-        "text": ${error_context}
+        "text": ${message_section}
       }
   	]
 }

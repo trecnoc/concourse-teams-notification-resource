@@ -2,7 +2,7 @@ Concourse Teams Notification Resource
 ==================
 
 Sends alerts to Teams.
-This resource can now send log output of failing Concourse task(s) to Teams.
+This resource sends the result of builds to a incoming webhook in MS Teams.
 
 Resource Type Configuration
 ---------------------------
@@ -12,7 +12,7 @@ resource_types:
 - name: teams-notification
   type: docker-image
   source:
-    repository: fidelityinternational/concourse-teams-resource
+    repository: trecnoc/concourse-teams-resource
     tag: latest
 ```
 
@@ -21,9 +21,7 @@ Source Configuration
 
 The following fields are required if you want to see erroring Concourse task output in the Teams notification:
 
-- atc_external_url: *Optional* The ATC external URL (if username and password is supplied but not the ATC URL, it will attempt to use the standard in-built ATC_EXTERNAL_URL instead)
-- atc_username: *Optional* ATC username is required if atc_external_url is supplied.
-- atc_password: *Optional* ATC password is required if atc_external_url is supplied.
+- url: The MS Teams incoming webhook URL
 
 Example resource config:
 
@@ -33,8 +31,6 @@ resources:
   type: teams-notification
   source:
     url: ((teams_webhook))
-    atc_username: ...
-    atc_password: ...
 ```
 
 Behaviour
@@ -50,6 +46,11 @@ Required:
 
 - `status`: 'failure' or 'success' for whether resource is called under on_failure or on_success.
 
+Optional:
+
+- `message`: A custom message to display
+- `message_file`: The location of a file to use as the message instead (this parameter is always preferred over `message` if set)
+
 Example
 -------
 
@@ -59,6 +60,7 @@ on_failure: # or on_success:
         - put: teams-alert
           params:
             status: failure #or status: success
+            message: My custom message #or message_file: my-filename.txt
 ```
 
 See our sample [test-pipeline.yml](test-pipeline.yml) for a working example.
@@ -82,4 +84,3 @@ fly -t local set-pipeline -p test -c test-pipeline.yml
 Browse http://localhost:8080 and run the monitoring-test job. One of the tasks in that job is supposed to succeed, and one is supposed to fail. Note the Teams put: on the failing job. This should now trigger, so check Teams for an incoming alert.
 
 Inside the alert message you should find pipeline, job_name, concourse_build_url and output fields which contain the logs from failed or succeeded jobs.
->>>>>>> 9ac5c11... Teams notification resource for concourse
