@@ -1,66 +1,73 @@
 ---
-resource_types:
-- name: teams-notification
-  type: docker-image
-  source:
-    repository: fidelityinternational/concourse-teams-notification-resource
-    tag: latest
-
-resources:
-- name: teams-alert
-  type: teams-notification
-  source:
-    webhook_url: <webhook>
-    concourse_username: <username>
-    concourse_password: <password>
-
-jobs:
-- name: monitoring-test
-  serial: true
-  build_logs_to_retain: 20
-  plan:
-  - do:
-    - task: successful-job
-      config:
-        platform: linux
-        image_resource:
-          type: docker-image
-          source:
-            repository: paasmule/curl-ssl-jq
-        run:
-          path: bash
-          args:
-          - -exc
-          - -o
-          - pipefail
-          - |
-            find /lib | tail -n 100
-      on_success:
-        do:
-        - put: teams-alert
-          params:
-            status: success
-    - task: failing-job
-      config:
-        platform: linux
-        image_resource:
-          type: docker-image
-          source:
-            repository: paasmule/curl-ssl-jq
-        run:
-          path: bash
-          args:
-          - -exc
-          - -o
-          - pipefail
-          - |
-            echo "HoHoHo"
-            sleep 5
-            ls dasfsd
-            false
-      on_failure:
-        do:
-        - put: teams-alert
-          params:
-            status: failure
-    timeout: 5m
+  resource_types:
+  - name: teams-notification
+    type: docker-image
+    source:
+      repository: trecnoc/concourse-teams-resource
+      tag: latest
+  
+  resources:
+  - name: teams-alert
+    type: teams-notification
+    source:
+      url: https://outlook.office.com/webhook/...
+  
+  jobs:
+  - name: monitoring-test
+    serial: true
+    build_logs_to_retain: 20
+    plan:
+    - do:
+      - task: successful-job
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: mintel/docker-alpine-bash-curl-jq
+          run:
+            path: bash
+            args:
+            - -exc
+            - -o
+            - pipefail
+            - |
+              find /lib | tail -n 100
+              echo "test file" > ./files/file.txt
+          outputs:
+            - name: files
+        on_success:
+          do:
+          - put: teams-alert
+            params:
+              status: success
+              message_file: files/file.txt
+          # no message test
+          - put: teams-alert
+            params:
+              status: success
+      - task: failing-job
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source:
+              repository: mintel/docker-alpine-bash-curl-jq
+          run:
+            path: bash
+            args:
+            - -exc
+            - -o
+            - pipefail
+            - |
+              echo "HoHoHo"
+              sleep 5
+              ls dasfsd
+              false
+        on_failure:
+          do:
+          - put: teams-alert
+            params:
+              status: failure
+              message: A custom failure message
+      timeout: 5m

@@ -1,6 +1,7 @@
-FROM python:3.7-alpine
+FROM alpine:3
+
 RUN apk add --no-cache --update bash curl openssl ca-certificates jq vim
-RUN pip install --upgrade pip
-COPY assets/ /opt/resource/
-RUN pip install -r /opt/resource/requirements.txt
+
+COPY src/ /opt/resource/
+
 RUN chmod +x /opt/resource/*
