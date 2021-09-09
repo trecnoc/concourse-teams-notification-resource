@@ -1,3 +1,6 @@
+*Repository Archived and moved to Bitbucket*
+==================
+
 Concourse Teams Notification Resource
 ==================
 
